@@ -5,11 +5,11 @@ trainer:
     init_args:
       project: bird-classification
       log_model: all
-      save_dir: /Users/kakao/Desktop/bird-job-dir
+      save_dir: /project/result
   checkpoint_callback: null
   enable_checkpointing: true
   callbacks: null
-  default_root_dir: /Users/kakao/Desktop/bird-job-dir
+  default_root_dir: /project/result
   gradient_clip_val: null
   gradient_clip_algorithm: null
   process_position: 0
@@ -28,19 +28,19 @@ trainer:
   check_val_every_n_epoch: 1
   fast_dev_run: false
   accumulate_grad_batches: null
-  max_epochs: 1
+  max_epochs: 50
   min_epochs: null
   max_steps: -1
   min_steps: null
   max_time: null
-  limit_train_batches: 60
-  limit_val_batches: 60
+  limit_train_batches: null
+  limit_val_batches: null
   limit_test_batches: null
   limit_predict_batches: null
   val_check_interval: null
   flush_logs_every_n_steps: null
   log_every_n_steps: 50
-  accelerator: null
+  accelerator: gpu
   strategy: null
   sync_batchnorm: false
   precision: 32
@@ -69,10 +69,9 @@ model:
   num_classes: 400
   learning_rate: 0.001
 data:
-  data_dir: /Users/kakao/jupyterlab/bird/datasets/birds-400
-#  data_dir: /Users/kakao/Desktop/bird-dataset
-  batch_size: 32
+  data_dir: /project/dataset/birds-400
+  batch_size: 64
   shuffle: true
-  num_workers: 1
-  pin_memory: false
+  num_workers: 48
+  pin_memory: true
 ckpt_path: null

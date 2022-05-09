@@ -13,10 +13,17 @@ class Birds400(pl.LightningDataModule):
     def __init__(self, data_dir, batch_size=32, shuffle=True, num_workers=1, pin_memory=False):
         super().__init__()
         self.save_hyperparameters('batch_size', 'shuffle')
+
         self.data_dir = data_dir
         self.num_workers = num_workers
         self.pin_memory = pin_memory
         self.num_classes = 400
+
+    def prepare_data(self):
+        artifact: wandb.Artifact = wandb.run.use_artifact('seanyoon/bird-classification/birds-400:latest',
+                                                          type='dataset')
+        # artifact.checkout(self.data_dir)
+        # artifact.verify(self.data_dir)
 
     @staticmethod
     def build_transform(augment):
@@ -67,7 +74,8 @@ class Birds400(pl.LightningDataModule):
                 shuffle=False,
                 num_workers=self.num_workers,
                 pin_memory=self.pin_memory
-            ), DataLoader(
+            ),
+            DataLoader(
                 self.ds_train_eval,
                 batch_size=self.hparams.batch_size,
                 shuffle=False,
@@ -133,6 +141,10 @@ class MobileNetV3Small(pl.LightningModule):
 
     def configure_optimizers(self):
         return torch.optim.Adam(self.parameters(), lr=self.hparams.learning_rate)
+
+    def configure_callbacks(self):
+        checkpoint = pl.callbacks.ModelCheckpoint(monitor='val_acc', mode='max')
+        return [checkpoint]
 
 
 cli = LightningCLI(
