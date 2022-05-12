@@ -7,6 +7,7 @@ import torchvision.transforms as transforms
 import pytorch_lightning as pl
 from pytorch_lightning.utilities.cli import LightningCLI
 import torchmetrics
+import wandb
 
 
 class Birds400(pl.LightningDataModule):
@@ -20,10 +21,11 @@ class Birds400(pl.LightningDataModule):
         self.num_classes = 400
 
     def prepare_data(self):
-        artifact: wandb.Artifact = wandb.run.use_artifact('seanyoon/bird-classification/birds-400:latest',
-                                                          type='dataset')
-        # artifact.checkout(self.data_dir)
-        # artifact.verify(self.data_dir)
+        if wandb.run is not None:
+            artifact: wandb.Artifact = wandb.run.use_artifact('seanyoon/bird-classification/birds-400:latest',
+                                                              type='dataset')
+            # artifact.checkout(self.data_dir)
+            # artifact.verify(self.data_dir)
 
     @staticmethod
     def build_transform(augment):
@@ -100,9 +102,10 @@ class Birds400(pl.LightningDataModule):
 
 
 class MobileNetV3Small(pl.LightningModule):
-    def __init__(self, num_classes, learning_rate=0.001):
+    def __init__(self, num_classes, learning_rate=0.001, lr_reduce_factor=0.1, lr_reduce_patience=10,
+                 early_stop_patience=30):
         super().__init__()
-        self.save_hyperparameters('learning_rate')
+        self.save_hyperparameters('learning_rate', 'lr_reduce_factor', 'lr_reduce_patience', 'early_stop_patience')
         self.net = mobilenet_v3_small(num_classes=num_classes)
         self.criterion = torch.nn.CrossEntropyLoss()
         self.train_acc = torchmetrics.Accuracy(num_classes=num_classes)
@@ -140,11 +143,25 @@ class MobileNetV3Small(pl.LightningModule):
         self.log('test_acc', self.val_acc)
 
     def configure_optimizers(self):
-        return torch.optim.Adam(self.parameters(), lr=self.hparams.learning_rate)
+        optim = torch.optim.Adam(self.parameters(), lr=self.hparams.learning_rate)
+        lr_sched = torch.optim.lr_scheduler.ReduceLROnPlateau(optim,
+                                                              mode='max',
+                                                              factor=self.hparams.lr_reduce_factor,
+                                                              patience=self.hparams.lr_reduce_patience)
+        return {
+            'optimizer': optim,
+            'lr_scheduler': {
+                'scheduler': lr_sched,
+                'monitor': 'val_acc',
+            },
+        }
 
     def configure_callbacks(self):
+        lr_monitor = pl.callbacks.LearningRateMonitor()
         checkpoint = pl.callbacks.ModelCheckpoint(monitor='val_acc', mode='max')
-        return [checkpoint]
+        early_stop = pl.callbacks.EarlyStopping(monitor='val_acc', mode='max',
+                                                patience=self.hparams.early_stop_patience)
+        return [lr_monitor, checkpoint, early_stop]
 
 
 cli = LightningCLI(
@@ -157,4 +174,5 @@ cli = LightningCLI(
             ]
         }
     },
+    save_config_overwrite=True
 )
